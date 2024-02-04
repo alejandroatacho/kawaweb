@@ -1,4 +1,4 @@
-const hina_mode = 1; //1 = untestable version, 2 = testable version
+let hina_mode = 1; //1 = untestable version, 2 = testable version
 if (hina_mode == 1){
     document.addEventListener('DOMContentLoaded', function() {
         const badgeBlocks = document.querySelectorAll('.select-left.badge-block');
