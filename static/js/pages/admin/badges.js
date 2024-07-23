@@ -1,23 +1,26 @@
-new Vue({
-    el: "#badges",
-    delimiters: ["<%", "%>"],
-    data() {
-        return {
-            flags: window.flags,
-            badges: {},
-        }
-    },
-    created() {
-        console.log('Badges.js Badges Page Created');
-    },
-    methods: {
-        
-        editBadge(badgeid) {
-            editBadgeBus.$emit('showEditBadgePanel', badgeid);
+document.addEventListener('DOMContentLoaded', function () {
+    new Vue({
+        el: "#badges",
+        delimiters: ["<%", "%>"],
+        data() {
+            return {
+                flags: window.flags,
+                badges: badges,
+            }
         },
-    },
-    computed: {
-    }
+        created() {
+            console.log('Badges.js Badges Page Created');
+            console.log('Badges:', this.badges);
+        },
+        methods: {
+
+            editBadge(badgeid) {
+                editBadgeBus.$emit('showEditBadgePanel', badgeid);
+            },
+        },
+        computed: {
+        }
+    });
 });
 var editBadgeBus = new Vue();
 new Vue({
@@ -28,7 +31,7 @@ new Vue({
             flags: window.flags,
             show: false,
             badge: {},
-            
+            isNewBadge: false,
         }
     },
     methods: {
@@ -48,21 +51,48 @@ new Vue({
                 });
         },
         saveBadge() {
-            // Code to save the badge's name, description, and priority
+            const url = this.isNewBadge ? '/admin/badge/create' : `/admin/badge/${this.badge.id}/update`;
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(this.badge),
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Success:', data);
+                this.close();
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+            });
         },
-        saveStyles() {
-            // Code to save the badge styles
-        }
+        addStyle() {
+            this.badge.styles.push({ type: '', value: '' });
+        },
+        newBadge() {
+            this.badge = {
+                name: '',
+                description: '',
+                priority: 0,
+                styles: [],
+            };
+            this.isNewBadge = true;
+            this.show = true;
+        },
     },
     created: function() {
         editBadgeBus.$on('showEditBadgePanel', (badgeid) => {
             console.log('Edit Badge Window Triggered')
-            this.badgeid = badgeid;
+            this.isNewBadge = false;
             this.fetchSelectedBadge(badgeid);
             this.show = true;
         });
-    },
-    computed: {
+        editBadgeBus.$on('showNewBadgePanel', () => {
+            console.log('New Badge Window Triggered')
+            this.newBadge();
+        });
     },
     template: `
         <div id="editBadgeWindow" class="modal" v-bind:class="{ 'is-active': show }">
@@ -90,12 +120,16 @@ new Vue({
                             </div>
                         </div>
                         <h2>Edit Badge Styles</h2>
-                        <div class="columns">
+                        <p>
+                        Required Styles: color (Hue Angle), icon (eg. fas fa-heart).</br>
+                        Supported Styles: 
+                        </p>
+                        <div class="columns" v-for="(style, index) in badge.styles" :key="index" style="margin-top: 10px; margin-bottom: 10px;">
                             <div class="column">
                                 <div class="field">
                                     <label class="label">Type</label>
                                     <div class="control">
-                                        <input class="input" type="text" v-model="badge.styles[0].type">
+                                        <input class="input" type="text" v-model="style.type">
                                     </div>
                                 </div>
                             </div>
@@ -103,29 +137,12 @@ new Vue({
                                 <div class="field">
                                     <label class="label">Value</label>
                                     <div class="control">
-                                        <input class="input" type="text" v-model="badge.styles[0].value">
+                                        <input class="input" type="text" v-model="style.value">
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        <div class="columns">
-                            <div class="column">
-                                <div class="field">
-                                    <label class="label">Type</label>
-                                    <div class="control">
-                                        <input class="input" type="text" v-model="badge.styles[1].type">
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="column">
-                                <div class="field">
-                                    <label class="label">Value</label>
-                                    <div class="control">
-                                        <input class="input" type="text" v-model="badge.styles[1].value">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        <button class="button is-primary" type="button" @click="addStyle">Add Style</button>
                         <button class="button is-primary" type="submit">Save</button>
                     </form>
                 </div>

@@ -2,6 +2,8 @@
 {% block title %} Home {% endblock %}
 
 {% block header %}
+<script src="/static/js/asserts/vue.js"></script>
+<script src="/static/js/asserts/vue-axios.js"></script>
 <link rel="stylesheet" href="/static/css/pages/home.css">
 <link rel="stylesheet" href="/static/css/pages/changelog.css">
 
@@ -9,46 +11,35 @@
 
 {% block content %}
 
-{% if flash %}
-<div class='noti-banner noti-banner-warning'>
-  <div class="container">
-    <div class="noti-column">
-      <div class='noti-col noti-col-icon'></div>
-      <div class='noti-col noti-col-label'>
-        <div class='noti-bannertype'>
-          {% if status=='error' %}
-          Warning
-          {% elif status=='success' %}
-          Notice
-          {% endif %}
-        </div>
-        <div class='noti-bannertext'>
-          {% if status=='error' %}
-          Uh oh! Be careful!
-          {% elif status=='success' %}
-          Hey! Listen!
-          {% endif %}
-        </div>
-      </div>
-      <div class='noti-banner-text'>
-        {{ flash }}
-      </div>
-    </div>
-  </div>
-</div>
-{% endif %}
-
 <div class="hero splash p-less is-fullheight-with-navbar" id="home-hero">
+<div id="stars"></div>
+<div id="stars1"></div>
+<div id="stars2"></div>
+<div id="stars3"></div>
   <div class="container flex">
     <div class="columns flex-vcenter">
       <div class="column flex-vcenter flex-lcenter is-size-2-desktop is-size-1-fullhd" id="title">
-        <h1 class="title is-spaced is-size-2-desktop is-size-1-fullhd">{{ appName() }}</h1>
-        <h2 class="subtitle">
+        <h1 class="title is-spaced is-size-2-desktop is-size-1-fullhd is-centered">{{ appName() }}</h1>
+        <div class="home-stats">
+          <div class="stat">
+            <span>
+              <a class='circle green'>●</a> 
+              <% online_users %> Online
+            </span>
+          </div>
+          <div class="stat">
+            <span>
+              <i class="fas fa-user-friends"></i> 
+              {{ dash_data['count']|default('?') }} Users
+            </span>
+          </div>
+        </div>
+        <h2 class="subtitle is-centered">
           Kawata is an osu! private server that allows modified clients
           and features to be used according to our rules of course. We allow 
           features such as DT Remover, Aim Assist, HD Remover, etc.
         </h2>
-        <h2 class="subtitle" id="timesincestuffbroke">
+        <h2 class="subtitle is-centered" id="timesincestuffbroke">
       
         </h2>
 
@@ -64,7 +55,7 @@
           }, 1000);
           </script>
         {% if not session.authenticated %}
-        <div class="buttons">
+        <div class="buttons is-centered">
           <a class="button is-primary" href="/register">
             <strong>Sign up</strong>
           </a>
@@ -73,15 +64,19 @@
           </a>
         </div>
         {% endif %}
-      </div>
-      <div class="column flex flex-lcenter" id="mascot">
-        <div class="gulag-avatar"></div>
+        <div class="scroll-down">
+          <span>
+          <a href="#features">
+            <i class="fas fa-chevron-down"></i> Scroll down for more information <i class="fas fa-chevron-down"></i>
+          </a>
+          </span>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
-<section class="section">
+<section class="section" id="features">
   <div class="container has-text-centered py-4">
     <h2 class="title mb-6">Some of our coolest features</h2>
     <div class="columns has-text-left mb-6">
@@ -121,13 +116,10 @@
           </div>
           <div class="column is-10">
             <h4 class="title is-spaced is-4">Custom Client</h4>
-            <p class="subtitle is-6">We have a Custom Client in the works that is currently in the private beta stage 
-              but is close to release. With support for sending cheat information to server, you can be sure that you 
-              won't be banned for accidentally breaking our rules, and you can show off your skills if you are one to 
-              challenge yourself with extended DT or lack of cheat use on plays. Client Cheats will be enabled by the 
-              server so you can't cheat on other servers with it, but don't let that discourage you from trying it out. 
-              We also feature many other features and performance improvements that will make your osu! experience more 
-              enjoyable.
+            <p class="subtitle is-6">We have a Custom osu! Client that is available for download in the clients section of our docs. 
+              Being made with our server in mind, it has limits set according to our rules and reports cheat data to our server to be displayed on your profile. 
+              This client is also made with other servers in mind as features are enabled by the server so there is little to no chance of our client being used to harm other servers or players.
+              Our client has many features not seen in the official or other custom clients while maintaining better performance. <a href="/docs/Clients?page=Kawata">Click here to learn more!</a>
             </p>
           </div>
         </div>
@@ -159,10 +151,10 @@
         <div class="mod-info">
           <div>
             Ranked by:</br>
-            <a href="/u/{{ map.mod.id }}">{{ map.mod.name }}</a>
+            <a href="/u/{{ map.get('mod', {}).get('id', '1') }}">{{ map.get('mod', {}).get('name', 'Melodies') }}</a>
           </div>
-          <img src="https://a.{{domain()}}/{{ map.mod.id }}" class="mod-icon">
-        </div>
+          <img src="https://a.{{domain()}}/{{ map.get('mod', {}).get('id', '1') }}" class="mod-icon">
+          </div>
       </div>
       {% endfor %}
   </div>
@@ -206,13 +198,12 @@
     <div class="container has-text-centered">
       <h1 class="title is-spaced">What are you waiting for?</h1>
       <h2 class="subtitle">Join {{ appName() }}! It's risk-free! You won't get your account banned on official servers
-        if
-        you play here with us! And don't worry, as you can always switch between the official servers and us at any time!</h2>
+        if you play here with us! And don't worry, as you can always switch between the official servers and us at any time!</h2>
       <div class="buttons is-centered"><a class="control button is-primary" href="/register">Sign up for free</a><a
           class="control button is-light" href="/login">Login</a></div>
     </div>
   </div>
 </section>
 {% endif %}
-
+<script src="/static/js/pages/home.js"></script>
 {% endblock %}

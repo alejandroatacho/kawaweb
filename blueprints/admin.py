@@ -16,8 +16,10 @@ from discord_webhook import DiscordWebhook, DiscordEmbed
 
 from constants import regexes
 from objects import glob
-from objects.utils import flash, get_safe_name
+from objects.utils import flash, get_safe_name, klogging, error_catcher
 from objects.privileges import Privileges, ComparePrivs, GetPriv
+
+from blueprints import frontend
 
 admin = Blueprint('admin', __name__)
 
@@ -29,7 +31,7 @@ class Action:
             actionbcrypt = bcrypt.hashpw(actionmd5, bcrypt.gensalt())
             return actionbcrypt[29:].decode('utf-8')
     
-    def __init__(self, action, reason = None, id = None, duration = None):
+    def __init__(self, action, reason = None, id = None, duration = None, badge = None):
         self.id = Action.genID()
         self.modid = session["user_data"]["id"]
         self.targetid = id
@@ -74,6 +76,16 @@ class Action:
             self.text = "Edited Account"
             self.type = 0
 
+        elif action == "addbadge":
+            self.text = "Given Badge"
+            self.badge = badge
+            self.type = 2
+
+        elif action == "removebadge":
+            self.text = "Revoked Badge"
+            self.badge = badge
+            self.type = 2
+
         elif action == "removescore":
             self.text = "Removed Score"
             self.type = 0
@@ -106,19 +118,21 @@ class Action:
             raise ValueError(f"Invalid action {action}.")
         
     @classmethod
-    async def create(cls, action, reason=None, id=None, duration=None):
-        instance = cls(action, reason, id, duration)
+    @error_catcher
+    async def create(cls, action, reason=None, id=None, duration=None, badge=None):
+        instance = cls(action, reason, id, duration, badge)
 
         await instance.initialize()
 
         return instance
         
+    @error_catcher
     async def initialize(self):
         self.mod = User(self.modid)
         await self.mod.fetchUser()
 
 
-        if self.action in ["wipe", "restrict", "unrestrict", "silence", "unsilence", "changepassword", "changeprivileges", "editaccount", "removescore"]:
+        if self.action in ["wipe", "restrict", "unrestrict", "silence", "unsilence", "changepassword", "changeprivileges", "editaccount", "addbadge", "removebadge", "removescore"]:
             self.user = User(self.targetid)
             await self.user.fetchUser()
         elif self.action in ["rank", "approve", "qualify", "love", "unrank", "completerequest"]:
@@ -130,6 +144,7 @@ class Map:
         self.id = id
         
     
+    @error_catcher
     async def fetchMap(self):
         data = await glob.db.fetch(f"SELECT * FROM maps WHERE id = {self.id}")
 
@@ -162,6 +177,7 @@ class User:
         self.id = id
         
 
+    @error_catcher
     async def fetchUser(self):
         data = await glob.db.fetch(f"SELECT * FROM users WHERE id = {self.id}")
         if data is None:
@@ -186,6 +202,7 @@ class User:
     
 
 @admin.route("/action/<a>", methods=["POST"])
+@error_catcher
 async def action(a: Literal["wipe", "restrict", "unrestrict", "silence", "unsilence", "changepassword", "changeprivileges", "rank", "unrank", "love", "unlove", "addbadge", "removebadge", "removescore"]):
     """
     The action endpoint is used to perform actions on users and maps.
@@ -804,7 +821,7 @@ async def action(a: Literal["wipe", "restrict", "unrestrict", "silence", "unsile
                     "message": str(e)
                 }
             ), 400
-
+    # TODO: Add Set Ranking Support, Endpoint should be able to handle it already haven't tested it yet.
     if a == "rank":
         form = await request.form
         if not form:
@@ -1522,7 +1539,7 @@ async def action(a: Literal["wipe", "restrict", "unrestrict", "silence", "unsile
                     await glob.db.execute(
                         f"""
                         UPDATE users
-                        SET email = {email}
+                        SET 'email' = '{email}'
                         WHERE id = {action.user.id};
                         """
                     )
@@ -1609,8 +1626,26 @@ async def action(a: Literal["wipe", "restrict", "unrestrict", "silence", "unsile
             ), 400
         
         try:
-            action = await Action.create(a, form.get("reason"), form.get("user"))
             badge = form.get("badge")
+            Badge = await glob.db.fetch(f"SELECT * FROM badges WHERE id = {badge}")
+            action = await Action.create(a, reason=form.get("reason"), id=form.get("user"), badge=Badge)
+        
+        except ValueError as e:
+            return jsonify(
+                {
+                    "status": "error",
+                    "message": str(e)
+                }
+            ), 400
+        
+        try:
+            if Privileges.ManageBadges not in GetPriv(action.mod.priv):
+                return jsonify(
+                    {
+                        "status": "error",
+                        "message": "You do not have permission to add badges to users."
+                    }
+                ), 403
 
             if await glob.db.fetch(f"SELECT * FROM user_badges WHERE userid = {action.user.id} AND badge_id = {badge}") is not None:
                 return jsonify(
@@ -1665,8 +1700,26 @@ async def action(a: Literal["wipe", "restrict", "unrestrict", "silence", "unsile
             ), 400
         
         try:
-            action = await Action.create(a, form.get("reason"), form.get("user"))
             badge = form.get("badge")
+            Badge = await glob.db.fetch(f"SELECT * FROM badges WHERE id = {badge}")
+            action = await Action.create(a, reason=form.get("reason"), id=form.get("user"), badge=Badge)
+        
+        except ValueError as e:
+            return jsonify(
+                {
+                    "status": "error",
+                    "message": str(e)
+                }
+            ), 400
+        
+        try:
+            if Privileges.ManageBadges not in GetPriv(action.mod.priv):
+                return jsonify(
+                    {
+                        "status": "error",
+                        "message": "You do not have permission to add badges to users."
+                    }
+                ), 403
 
             if await glob.db.fetch(f"SELECT * FROM user_badges WHERE userid = {action.user.id} AND badge_id = {badge}") is None:
                 return jsonify(
@@ -1768,6 +1821,7 @@ async def action(a: Literal["wipe", "restrict", "unrestrict", "silence", "unsile
                 }
             ), 400
 
+@error_catcher
 async def log(action: Action):
     """
     structure of the log table:
@@ -1822,7 +1876,7 @@ async def log(action: Action):
         webhook.add_embed(embed)
         webhook.execute()
     
-    elif action.type == 1:
+    elif action.type == 1: # TODO: Add support for Set Ranking
         await glob.db.execute(
             f"""
             INSERT INTO logs (id, action, reason, `mod`, target, time, type)
@@ -1834,19 +1888,24 @@ async def log(action: Action):
 
         embed = DiscordEmbed(
             title=f"{action.map.title} [{action.map.version}] was {action.text} by {action.mod.name} ({action.mod.id})",
-            description=f"{action.map.version} was {action.text}",
+            description=f"[{action.map.title} [{action.map.version}]](https://osu.ppy.sh/b/{action.map.id}) was {action.text}",
             color=5126045,
             timestamp=datetime.datetime.now()
             )
         
         embed.set_author(
-            name=f"New Action By {action.mod.name} ({action.mod.id})",
+            name=f"Diff {action.text} By {action.mod.name} ({action.mod.id})",
             icon_url=f"https://a.kawata.pw/{action.mod.id}"
             )
 
         embed.add_embed_field(
             name="Information:",
-            value=f"Action ID: {action.id}\nAction Moderator: {action.mod.name} ({action.mod.id})\nAction map: {action.map.title} [{action.map.version}] ({action.map.id})\nAction Type: {action.action}\n Action Reason: {action.reason}",
+            value=f"""
+            Ranked By: {action.mod.name} ({action.mod.id})\n
+            Map: {action.map.title} [{action.map.version}] ({action.map.id})\n
+            Map Stats: CS: {action.map.cs} AR: {action.map.ar} OD: {action.map.od} HP: {action.map.hp} NM*: {action.map.diff}\n
+            Action: {action.action}\n 
+            """,
             inline=False
             )
 
@@ -1859,11 +1918,51 @@ async def log(action: Action):
         webhook.add_embed(embed)
         webhook.execute()
 
+    elif action.type == 2: 
+        await glob.db.execute(
+            f"""
+            INSERT INTO logs (id, action, reason, `mod`, target, time, type)
+            VALUES ('{action.id}', '{action.action}', '{action.reason}', {action.mod.id}, {action.user.id}, '{datetime.datetime.now()}', {action.type});
+            """
+        )
+        webhook = DiscordWebhook(glob.config.ADMIN_WEBHOOK_URL)
+        # don't post password changes to discord, that's just dumb
+        embed = DiscordEmbed(
+            title=f"{action.user.name} was {action.text} {action.badge['name']} by {action.mod.name}",
+            description=f"",
+            color=5126045,
+            timestamp=datetime.datetime.now()
+            )
+        
+        embed.set_author(
+            name=f"New Action By {action.mod.name}",
+            icon_url=f"https://a.kawata.pw/{action.mod.id}"
+            )
+
+        embed.add_embed_field(
+            name="Information:",
+            value=f"""
+            Action Moderator: {action.mod.name} ({action.mod.id})\n
+            Action User: {action.user.name} ({action.user.id})\n
+            Badge: {action.badge['name']} ({action.badge['id']})\n
+            Badge Description: {action.badge['description']}\n
+            """,
+            inline=False
+            )
+
+        embed.set_footer(
+            text=f"ID: {action.id}",
+            icon_url=f"https://a.kawata.pw/{action.user.id}")
+
+        webhook.add_embed(embed)
+        webhook.execute()
+
 
 
 @admin.route('/')
 @admin.route('/home')
 @admin.route('/dashboard')
+@error_catcher
 async def home():
     """Render the homepage of guweb's admin panel."""
     if not 'authenticated' in session:
@@ -1897,6 +1996,7 @@ async def home():
 @admin.route('/users')
 @admin.route('/users/')
 @admin.route('/users/<int:page>')
+@error_catcher
 async def users(page=None):
     """Render the homepage of guweb's admin panel."""
     if not 'authenticated' in session:
@@ -1946,6 +2046,7 @@ async def users(page=None):
         datetime=datetime, timeago=timeago
     )
 
+@error_catcher
 @admin.route('/user/<int:userid>')
 async def user(userid):
     """Render the homepage of guweb's admin panel."""
@@ -2014,6 +2115,7 @@ async def user(userid):
     return jsonify(user)
 
 @admin.route('/badges')
+@error_catcher
 async def badges():
     """Render the homepage of guweb's admin panel."""
     if not 'authenticated' in session:
@@ -2025,8 +2127,8 @@ async def badges():
     # Check if JSON query parameter is present
     is_json = request.args.get('json') == 'true'
 
-    # Get all badges
-    badges = await glob.db.fetchall("SELECT * FROM badges")
+    # Get all badges and sort by priority
+    badges = await glob.db.fetchall("SELECT * FROM badges ORDER BY priority DESC")
 
     # Get badge styles for each badge
     for badge in badges:
@@ -2034,10 +2136,7 @@ async def badges():
             "SELECT * FROM badge_styles WHERE badge_id = %s",
             (badge['id'],),
         )
-        if is_json:
-            badge['styles'] = {style['type']: style['value'] for style in badge_styles}
-        else:
-            badge['styles'] = badge_styles
+        badge['styles'] = {style['type']: style['value'] for style in badge_styles}
 
     # Return JSON response if is_json is True
     if is_json:
@@ -2050,6 +2149,7 @@ async def badges():
     )
 
 @admin.route('/badge/<int:badgeid>')
+@error_catcher
 async def badge(badgeid):
     """Return information about the provided badge."""
     if not 'authenticated' in session:
@@ -2085,8 +2185,109 @@ async def badge(badgeid):
     # Return JSON response
     return jsonify(badge)
 
+
+@admin.route('/badge/<int:badgeid>/update', methods=['POST'])
+@error_catcher
+async def update_badge(badgeid):
+    """Update the provided badge."""
+    if not 'authenticated' in session:
+        return await flash('error', 'Please login first.', 'login')
+
+    if not session['user_data']['is_staff']:
+        return await flash('error', f'You have insufficient privileges.', 'home')
+    if Privileges.ManageBadges not in GetPriv(session["user_data"]["priv"]):
+        return jsonify(
+            {
+                "status": "error",
+                "message": "You do not have permission to update badges."
+            }
+        ), 403
+
+    data = await request.get_json()
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+
+    # Update the badge in the database
+    await glob.db.execute(
+        "UPDATE badges SET name = %s, description = %s, priority = %s WHERE id = %s",
+        (data['name'], data['description'], data['priority'], badgeid),
+    )
+
+    # Update the badge styles in the database
+    for style in data['styles']:
+        existing_style = await glob.db.fetch(
+            "SELECT * FROM badge_styles WHERE badge_id = %s AND type = %s",
+            (badgeid, style['type']),
+        )
+
+        if existing_style:
+            # Update the existing style
+            await glob.db.execute(
+                "UPDATE badge_styles SET value = %s WHERE badge_id = %s AND type = %s",
+                (style['value'], badgeid, style['type']),
+            )
+        else:
+            # Insert a new style
+            await glob.db.execute(
+                "INSERT INTO badge_styles (badge_id, type, value) VALUES (%s, %s, %s)",
+                (badgeid, style['type'], style['value']),
+            )
+
+    return jsonify({'success': 'Badge updated successfully'}), 200
+
+@admin.route('/badge/create', methods=['POST'])
+@error_catcher
+async def create_badge():
+    """Create a new badge."""
+    if not 'authenticated' in session:
+        return await flash('error', 'Please login first.', 'login')
+
+    if not session['user_data']['is_staff']:
+        return await flash('error', f'You have insufficient privileges.', 'home')
+    
+    if Privileges.ManageBadges not in GetPriv(session["user_data"]["priv"]):
+        return jsonify(
+            {
+                "status": "error",
+                "message": "You do not have permission to create badges."
+            }
+        ), 403
+    data = await request.get_json()
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+
+    # Create a new badge in the database
+    await glob.db.execute(
+        "INSERT INTO badges (name, description, priority) VALUES (%s, %s, %s)",
+        (data['name'], data['description'], data['priority']),
+    )
+    # Get the ID of the newly created badge
+    result = await glob.db.fetch(
+        f"SELECT id FROM badges WHERE name = '{data['name']}'",
+    )
+
+    new_badge_id = result['id'] if result else None
+
+    # Check if the badge ID exists
+    if not new_badge_id:
+        return jsonify({'error': 'Failed to create badge'}), 500
+
+    # Add the badge styles to the database
+    try:
+        for style in data['styles']:
+            await glob.db.execute(
+                "INSERT INTO badge_styles (badge_id, type, value) VALUES (%s, %s, %s)",
+                (new_badge_id, style['type'], style['value']),
+            )
+    except Exception as e:
+        print('error: ', str(e))
+        return jsonify({'error': str(e)}), 500
+
+    return jsonify({'success': 'Badge created successfully'}), 200
+
 @admin.route('/beatmaps/<int:page>')
 @admin.route('/beatmaps')
+@error_catcher
 async def beatmaps(page=None):
     """Render the beatmaps page of guweb's admin panel."""
     if not 'authenticated' in session:
@@ -2105,62 +2306,92 @@ async def beatmaps(page=None):
     offset = (page - 1) * items_per_page
 
     requests = await glob.db.fetchall(
-        "SELECT * FROM map_requests WHERE active = 1 LIMIT %s OFFSET %s",
+        "SELECT * FROM map_requests WHERE active = 1 ORDER BY datetime DESC LIMIT %s OFFSET %s",
         (items_per_page, offset)
     )
     
     # Append map_info to each entry in requests
     for request in requests:
-        player_and_badges = await glob.db.fetchall(
-            """
-            SELECT users.name, users.id, users.country, badges.*, badge_styles.*
-            FROM users
-            LEFT JOIN user_badges ON users.id = user_badges.userid
-            LEFT JOIN badges ON user_badges.badge_id = badges.id
-            LEFT JOIN badge_styles ON badges.id = badge_styles.badge_id
-            WHERE users.id = %s
-            ORDER BY badges.priority DESC
-            """,
+        user = await glob.db.fetch(
+            "SELECT name, id, country FROM users WHERE id = %s",
             (request['player_id'],),
         )
 
-        player = player_and_badges[0]
-        player['badges'] = [
-            {
-                **badge,
-                "styles": {key: badge[key] for key in badge if key.startswith('style')}
-            }
-            for badge in player_and_badges
-        ]
+        user_badges = await glob.db.fetchall(
+            "SELECT badge_id FROM user_badges WHERE userid = %s",
+            (request['player_id'],),
+        )
+        badges = []
+        for user_badge in user_badges:
+            badge_id = user_badge["badge_id"]
 
-        request['player'] = player
-        map_info_and_diffs = await glob.db.fetchall(
-            """
-            SELECT *
-            FROM maps
-            WHERE id = %s OR set_id = (
-                SELECT set_id FROM maps WHERE id = %s
+            badge = await glob.db.fetch(
+                "SELECT * FROM badges WHERE id = %s",
+                (badge_id,),
             )
-            """,
-            (request['map_id'], request['map_id']),
-        )
 
-        request['map_info'] = next(
-            map for map in map_info_and_diffs if map['id'] == request['map_id']
-        )
-        request['map_diffs'] = [
-            map for map in map_info_and_diffs if map['id'] != request['map_id']
-        ]
+            badge_styles = await glob.db.fetchall(
+                "SELECT * FROM badge_styles WHERE badge_id = %s",
+                (badge_id,),
+            )
+
+            badge = dict(badge)
+            badge["styles"] = {style["type"]: style["value"] for style in badge_styles}
+
+            badges.append(badge)
+
+            # Sort the badges based on priority
+            badges.sort(key=lambda x: x['priority'], reverse=True)
+        request['player'] = user
+        request['player']['badges'] = badges
+        try:
+            map_info_and_diffs = await glob.db.fetchall(
+                """
+                SELECT *
+                FROM maps
+                WHERE id = %s OR set_id = (
+                    SELECT set_id FROM maps WHERE id = %s
+                )
+                """,
+                (request['map_id'], request['map_id']),
+            )
+        except:
+            klogging.log(f"Error fetching map info for request {request['id']}", klogging.Ansi.LRED, extra={
+                "request": request,
+            })
+        try:
+            request['map_info'] = next(
+                (map for map in map_info_and_diffs if map['id'] == request['map_id'])
+            )
+        except Exception as e:
+            klogging.log(f"Error fetching map info for request {request['id']}, Deleting Request", klogging.Ansi.LRED, extra={
+                "request": request,
+            })
+            await glob.db.execute(
+                "DELETE FROM map_requests WHERE id = %s",
+                (request['id'],),
+            )
+        try:
+            request['map_diffs'] = [
+                map for map in map_info_and_diffs if map['id'] != request['map_id']
+            ]
+        except:
+            klogging.log(f"Error fetching map diffs for request {request['id']}", klogging.Ansi.LRED, extra={
+                "request": request,
+            })
+            
 
         # Convert datetime objects to strings
         request['datetime'] = request['datetime'].strftime('%Y-%m-%d %H:%M:%S')
         request['map_info']['last_update'] = request['map_info']['last_update'].strftime('%Y-%m-%d %H:%M:%S')
         for diff in request['map_diffs']:
-            diff['last_update'] = diff['last_update'].strftime('%Y-%m-%d %H:%M:%S')
+            try:
+                diff['last_update'] = diff['last_update'].strftime('%Y-%m-%d %H:%M:%S')
+            except Exception as e:
+                klogging.log(f"Error converting datetime to string for diff {diff['id']}", klogging.Ansi.LRED, extra={
+                    "diff": diff,
+                })
     
-    
-    if glob.config.debug:
-        print(requests[1])
     # Return HTML response
     return await render_template(
         'admin/beatmaps.html', requests=requests, 
@@ -2168,6 +2399,7 @@ async def beatmaps(page=None):
     )
 
 @admin.route('/stuffbroke')
+@error_catcher
 async def stuffbroke():
     if not 'authenticated' in session:
         return await flash('error', 'Please login first.', 'login')
@@ -2182,9 +2414,10 @@ async def stuffbroke():
     ON DUPLICATE KEY UPDATE value = '{int(datetime.datetime.now().timestamp())}';
     """
     )
-    return await flash('success', 'Successfully broke stuff.', 'home')
+    return await frontend.home(flash='Successfully broke stuff.', status='success')
 
 @admin.route('/test')
+@error_catcher
 async def test():
     if not 'authenticated' in session:
         return await flash('error', 'Please login first.', 'login')

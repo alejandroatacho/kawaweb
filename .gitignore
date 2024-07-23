@@ -143,9 +143,10 @@ dmypy.json
 cython_debug/
 
 # Project specific
-config.py
 .vscode/
 .data/*
 !.data/backgrounds/.gitkeep
 !.data/banners/.gitkeep
 nginx/
+.fuse*
+logging.yaml

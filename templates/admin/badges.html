@@ -19,7 +19,7 @@
         <div id="" class="main-block">
             
         </div>
-        <button onclick="newBadge()">New Badge</button>
+        <button onclick="editBadgeBus.$emit('showNewBadgePanel')">New Badge</button>
         <div class="columns">
             <table>
                 <thead>
@@ -29,6 +29,7 @@
                         <th>Description</th>
                         <th>Priority</th>
                         <th>Styles</th>
+                        <th>Preview</th>
                         <th>Edit</th>
                     </tr>
                 </thead>
@@ -40,6 +41,7 @@
                         <td>{{ badge.description }}</td>
                         <td>{{ badge.priority }}</td>
                         <td>{{ badge.styles|length }}</td>
+                        <td><badge :badge="{{ badge }}"></badge></td>
                         <td><button @click="editBadge({{ badge.id }})">Edit</button></td>
                     </tr>
                     {% endfor %}

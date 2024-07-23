@@ -1,0 +1,260 @@
+
+.badge-selects {
+    background: hsl(var(--main), 16%, 20%);
+    height: fit-content !important;
+    overflow-x: clip !important;
+    overflow-y: visible !important;
+}
+    .badge-selects::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+        background-color: hsl(var(--main), 10%, 25%);
+        border-bottom-right-radius: 8px;
+    }
+    .badge-selects::-webkit-scrollbar-thumb {
+        border-radius: 6px;
+        background-color: hsl(var(--main), 15%, 40%);
+    }
+    .badge-block {
+        width: 100%;
+        height: fit-content;
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+        span[data-popup="badge"] {
+            display: inline-block;
+            align-self: center;
+        }
+        .badge {
+            display: inline-block;
+            position: relative;
+            top: 100%;
+            height: 35px;
+            border-radius: 16px;
+            padding: 4.5px 7px;
+            font-size: 12px;
+            margin-left: 10px;
+            margin-top: 2px;
+            margin-bottom: 2px;
+            background-color: hsl(var(--main), 30%, 30%);
+            transition: 0.2s color;
+            transition: 0.2s scale;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: row;
+        }
+            .badge:hover {
+                scale: 1.10;
+                transition: 0.2s scale;
+            }
+            .badge .icon {
+                padding: 0;
+                margin-left: 0;
+                /* margin-right: 6px; */
+                width: 24px;
+                height: 24px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+                .badge.icon i {
+                    width: 16px;
+                    height: 16px;
+                }
+            .badge:hover .badge-panel
+            .badge .badge-panel {
+                display: none;
+                position: absolute;
+                bottom: 100%; /* Position the panel above the badge */
+                left: 50%; /* Center the panel */
+                transform: translateX(-50%); /* Center the panel */
+                padding: 10px;
+                border-radius: 6px;
+                box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+                width: 150px;
+                z-index: 5; /* Make sure the panel is above other elements */
+                word-wrap: break-word !important; /* Break words at the end of the line */
+                overflow-wrap: break-word; /* Break words at the end of the line (better support in modern browsers) */
+                line-height: 18px;
+                font-weight: 400;
+                text-wrap: wrap !important;
+            }
+            .badge:hover .badge-panel {
+                display: block; /* Show the panel when the badge is hovered */
+                position: absolute;
+                bottom: 100%; /* Position the panel above the badge */
+                left: 50%; /* Center the panel */
+                transform: translateX(-50%); /* Center the panel */
+                padding: 10px;
+                border-radius: 6px;
+                box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+                width: 150px;
+                z-index: 5; /* Make sure the panel is above other elements */
+                word-wrap: break-word !important; /* Break words at the end of the line */
+                overflow-wrap: break-word; /* Break words at the end of the line (better support in modern browsers) */
+                line-height: 18px;
+                font-weight: 400;
+                text-wrap: wrap !important;
+            }
+        .iconBadge {
+            display: inline-block;
+            position: relative;
+            top: 100%;
+            height: 100%;
+            border-radius: 16px;
+            font-size: 12px;
+            margin-right: 4px;
+            margin-top: 2px;
+            margin-bottom: 2px;
+            background-color: hsl(var(--main), 30%, 30%);
+            transition: 0.2s color;
+            transition: 0.2s scale;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: row;
+        }
+            .iconBadge:hover {
+                scale: 1.10;
+                transition: 0.2s scale;
+            }
+            .iconBadge .icon {
+                padding: 0;
+                width: 24px;
+                height: 24px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+                .iconBadge.icon i {
+                    width: 16px;
+                    height: 16px;
+                }
+            .badge-panel {
+                display: none;
+                position: absolute;
+                bottom: 100%; /* Position the panel above the badge */
+                left: 50%; /* Center the panel */
+                transform: translateX(-50%); /* Center the panel */
+                padding: 10px;
+                border-radius: 6px;
+                box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+                width: 150px;
+                z-index: 5; /* Make sure the panel is above other elements */
+                word-wrap: break-word !important; /* Break words at the end of the line */
+                overflow-wrap: break-word; /* Break words at the end of the line (better support in modern browsers) */
+                line-height: 18px;
+                font-weight: 400;
+                text-wrap: wrap !important;
+            }
+            .iconBadge:hover .badge-panel {
+                display: block; /* Show the panel when the badge is hovered */
+                position: absolute;
+                bottom: 100%; /* Position the panel above the badge */
+                left: 50%; /* Center the panel */
+                transform: translateX(-50%); /* Center the panel */
+                padding: 10px;
+                border-radius: 6px;
+                box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+                width: 150px;
+                z-index: 5; /* Make sure the panel is above other elements */
+                word-wrap: break-word !important; /* Break words at the end of the line */
+                overflow-wrap: break-word; /* Break words at the end of the line (better support in modern browsers) */
+                line-height: 18px;
+                font-weight: 400;
+                text-wrap: wrap !important;
+            }
+
+
+
+/* Style for User Panel Vue Component */
+.profile-panel {
+    position: absolute;
+    display: flex !important;
+    width: fit-content;
+    z-index: 610;
+    opacity: 1;
+    flex-direction: row;
+    justify-content: flex-start; /* Updated */
+    align-items: center; /* Added */
+    background-position: center;
+    background-size: cover;
+    border-radius: 20px;
+    margin-top: -84px;
+    color: white;
+    background-color: hsl(var(--main), 10%, 20%);
+    transition: 200ms opacity, 200ms visibility;
+    transition-delay: 0s, 0s;
+    transition-delay: 250ms;
+    line-height: 1.35;
+    visibility: visible;
+    background-image: url(/static/images/default-bg.png);
+}
+    .profile-panel-background {
+        height: 100%;
+        width: 100%;
+        border-radius: 12px;
+        position: absolute !important;
+        z-index: -1;
+        background-position: center;
+        background-size: cover;
+    }
+    .profile-panel > div {
+        position: relative;
+    }
+    .profile-panel-avatar {
+        height: 72px;
+        width: 72px;
+        background-size: cover;
+        background-position: center;
+    }
+    .profile-panel-info {
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start; /* Updated */
+        margin-left: 8px; /* Added */
+    }
+        .profile-panel-info .name {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            margin-right: 12px;
+            text-align: left;
+        }
+        .profile-panel-info .badges {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            border-radius: 8px;
+            height: fit-content;
+            padding: 2px;
+            width: fit-content;
+            max-width: 98%;
+        }
+            .badges .badge {
+                margin-right: 2px;
+                text-shadow: 0 2px 2px rgba(0, 0, 0, 0.56);
+            }
+            .badge-popup {
+                position: absolute;
+                width: fit-content;
+                padding: 4px;
+                padding-left: 8px;
+                padding-right: 8px;
+                height: fit-content;
+                border-radius: 20px;
+                background: rgba(0, 0, 0, .5);
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                text-wrap: wrap;
+                opacity: 1;
+                transition: .2s ease;
+                z-index: 99;
+                text-shadow: 0 2px 2px rgba(0, 0, 0, 0.56);
+            }

@@ -8,6 +8,8 @@ new Vue({
             mode: 'std',
             mods: 'vn',
             sort: 'pp',
+            page: 1,
+            pageSize: 50,
             load: false,
             no_player: false, // soon
         };
@@ -25,16 +27,19 @@ new Vue({
         LoadLeaderboard(sort, mode, mods) {
             if (window.event)
                 window.event.preventDefault();
-
+        
             window.history.replaceState('', document.title, `/leaderboard/${this.mode}/${this.sort}/${this.mods}`);
             this.$set(this, 'mode', mode);
             this.$set(this, 'mods', mods);
             this.$set(this, 'sort', sort);
             this.$set(this, 'load', true);
+            const offset = (this.page - 1) * this.pageSize; // Calculate the offset
             this.$axios.get(`${window.location.protocol}//api.${domain}/v1/get_leaderboard`, {
                 params: {
                     mode: this.StrtoGulagInt(),
-                    sort: this.sort
+                    sort: this.sort,
+                    offset: offset, // Use the offset here
+                    limit: this.pageSize // Use 'limit' instead of 'pageSize'
                 }
             }).then(res => {
                 this.boards = res.data.leaderboard;
@@ -83,72 +88,12 @@ new Vue({
                     return -1;
             }
         },
-    },
-});
-Vue.component('user-profile', {
-    props: ['user'],
-    template: `
-    <span :id="user.player_id" class="user-name" @mouseover="showProfile" @mouseout="hideProfile">
-        <a :href="'/u/'+user.player_id+'?mode='+mode+'&mods='+mods">
-            {{ user.name }}
-        </a>
-        <div :id="user.player_id" class="profile-panel" v-bind:style="{ display: profileStyle }">
-            <div class="profile-panel-background" :style="'background-image: url(/backgrounds/' + user.player_id + ')'"></div>
-            <div class="profile-panel-avatar" :style="'background-image: url(https://a.' + domain + '/' + user.player_id + ')'"></div>
-            <div class="profile-panel-info">
-                <div class="name">
-                    <span v-if="user.clan_tag">
-                        <a>
-                            [{{ user.clan_tag }}]
-                        </a>
-                    </span>
-                    {{ user.name }}
-                </div>
-                <div class="Badges">
-                    <span v-for="badge in user.badges">
-                        <i :class="'badge ' + badge.styles.icon" :style="'color: hsl(' + badge.styles.color + ', 100%, 60%);'" @mouseover="showBadgePopup($event, badge)" @mouseout="hideBadgePopup"></i>
-                        <div class="badge-popup" v-if="badgePopupVisible == badge.id" :style="{ top: -20, left: 0 }">
-                            <div class="badge-name" :style="'color: hsl('+ badge.styles.color + ', 100%, 60%);'">{{ badge.name }}</div>
-                            <div class="badge-description">{{ badge.description }}</div>
-                        </div>
-                    </span>
-                </div>
-            </div>
-        </div>
-    </span>
-    `,
-    data: function() {
-        return {
-            profileVisible: false,
-            badgePopupVisible: false,
-            badgePopupTop: 0,
-            badgePopupLeft: 0,
-        };
-    },
-    methods: {
-        showProfile: function() {
-            this.profileVisible = true;
+        changePage(page) {
+            this.page = page;
+            this.LoadLeaderboard(this.sort, this.mode, this.mods);
         },
-        hideProfile: function() {
-            this.profileVisible = false;
+        getRank(index) {
+            return (this.page - 1) * this.pageSize + index + 1;
         },
-        showBadgePopup: function(event, badge) {
-            if (this.badgePopupVisible != badge.id) {
-                this.badgePopupVisible = badge.id;
-                // Calculate the position of the badge popup relative to the badge icon
-                const badgeIcon = event.target;
-                const badgeIconRect = badgeIcon.getBoundingClientRect();
-                this.badgePopupTop = badgeIconRect.top + badgeIconRect.height + 'px';
-                this.badgePopupLeft = badgeIconRect.left + 'px';
-            }
-            },
-        hideBadgePopup: function() {
-            this.badgePopupVisible = false;
-        }
     },
-    computed: {
-        profileStyle: function() {
-            return this.profileVisible ? 'flex !important' : 'none !important';
-        }
-    }
 });
